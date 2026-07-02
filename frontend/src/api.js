@@ -32,10 +32,12 @@ export const api = {
 
   createEvent: (payload) =>
     request("/api/events", { method: "POST", body: JSON.stringify(payload) }),
+  listEventsForQuery: (weatherQueryId) =>
+    request(`/api/events?weather_query_id=${weatherQueryId}`),
   assessRisk: (eventId) =>
     request(`/api/events/${eventId}/assess-risk`, { method: "POST" }),
 
-  askAgent: (question, locationInput, startDate, endDate) =>
+  askAgent: (question, locationInput, startDate, endDate, events) =>
     request("/api/agent/ask", {
       method: "POST",
       body: JSON.stringify({
@@ -43,6 +45,7 @@ export const api = {
         location_input: locationInput || null,
         start_date: startDate || null,
         end_date: endDate || null,
+        events: events || null,
       }),
     }),
 

@@ -29,8 +29,16 @@ def create_event(payload: schemas.EventCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=list[schemas.EventOut])
-def list_events(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    return db.query(models.Event).offset(skip).limit(limit).all()
+def list_events(
+    weather_query_id: int | None = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    q = db.query(models.Event)
+    if weather_query_id is not None:
+        q = q.filter(models.Event.weather_query_id == weather_query_id)
+    return q.offset(skip).limit(limit).all()
 
 
 @router.get("/{event_id}", response_model=schemas.EventOut)

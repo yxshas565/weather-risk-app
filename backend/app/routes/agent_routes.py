@@ -14,5 +14,6 @@ async def ask_agent(payload: AgentQuery):
         payload.location_input,
         payload.start_date,
         payload.end_date,
+        getattr(payload, "events", None),
     )
     return result

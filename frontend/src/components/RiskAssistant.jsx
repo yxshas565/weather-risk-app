@@ -151,6 +151,13 @@ import { useState, useEffect } from "react";
 import api from "../api";
 
 export default function RiskAssistant({ query }) {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    api.listEventsForQuery?.(query.id)
+      .then((evts) => setEvents(evts || []))
+      .catch(() => setEvents([]));
+  }, [query.id]);
 
 
   function isCoordinatePair(str) {
@@ -180,7 +187,13 @@ function locationForAgent(resolvedName) {
     setQuestion("");
     setLoading(true);
     try {
-      const result = await api.askAgent(q, locationForAgent(query.resolved_name), query.start_date, query.end_date);
+      const result = await api.askAgent(
+        q,
+        locationForAgent(query.resolved_name),
+        query.start_date,
+        query.end_date,
+        events
+      );
 if (!result) {
   setMessages((m) => [...m, { role: "agent", text: "No response from the agent. Please try again.", error: true }]);
 } else {

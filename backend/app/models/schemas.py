@@ -120,3 +120,4 @@ class AgentQuery(BaseModel):
     location_input: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    events: Optional[list[dict]] = None

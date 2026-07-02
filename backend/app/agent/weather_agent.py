@@ -26,6 +26,8 @@ class AgentState(TypedDict):
     location_input: Optional[str]
     start_date: Optional[object]
     end_date: Optional[object]
+    question_date: Optional[str]
+    events: Optional[list]
     location: Optional[dict]
     used_fallback_location: Optional[bool]
     forecast: Optional[list]
@@ -42,13 +44,19 @@ async def geocode_node(state: AgentState) -> AgentState:
     if not loc_input:
         state["error"] = "Couldn't identify a location. Please specify one or select a saved query."
         return state
-    # If we're falling back to the passed-in location, we're using the
-    # active query's own date range too (handled in forecast_node).
     state["used_fallback_location"] = extracted is None
     try:
         state["location"] = await weather_service.geocode_location(loc_input)
     except weather_service.WeatherServiceError as e:
         state["error"] = str(e)
+
+    # Try to pull an explicit date/day reference out of the question
+    # (e.g. "that day", "July 5th", "tomorrow") so questions about a
+    # specific planned event resolve to the right date, not just "today".
+    events = state.get("events") or []
+    extracted_date = await _extract_date(state["question"], events)
+    if extracted_date:
+        state["question_date"] = extracted_date
     return state
 
 
@@ -59,7 +67,18 @@ async def forecast_node(state: AgentState) -> AgentState:
         loc = state["location"]
         start = state.get("start_date")
         end = state.get("end_date")
-        if state.get("used_fallback_location") and start and end:
+        q_date = state.get("question_date")
+
+        if q_date:
+            # A specific date was mentioned/implied in the question —
+            # fetch a tight window around it so the agent answers about
+            # that day specifically, not just "today onward".
+            from datetime import datetime as _dt
+            q_date_obj = _dt.strptime(q_date, "%Y-%m-%d").date()
+            state["forecast"] = await weather_service.get_forecast(
+                loc["latitude"], loc["longitude"], start_date=q_date_obj, end_date=q_date_obj
+            )
+        elif state.get("used_fallback_location") and start and end:
             state["forecast"] = await weather_service.get_forecast(
                 loc["latitude"], loc["longitude"], start_date=start, end_date=end
             )
@@ -143,6 +162,40 @@ async def _extract_location(question: str) -> Optional[str]:
         return None if text.upper() == "NONE" else text
     except Exception:
         return None
+    
+
+async def _extract_date(question: str, events: Optional[list] = None) -> Optional[str]:
+    """Pulls an explicit or relative date reference out of free text,
+    resolved to YYYY-MM-DD. Knows about the user's saved events so
+    'that day' / event names can resolve without the date being retyped."""
+    from datetime import date
+    today_str = date.today().isoformat()
+    events = events or []
+    events_str = "\n".join(
+        f"- \"{e.get('name')}\" on {e.get('start_time', '')[:10]}" for e in events
+    ) or "(none)"
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=20,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Today's date is {today_str}. The user has these saved events:\n"
+                    f"{events_str}\n\n"
+                    f"They asked: \"{question}\"\n"
+                    f"If the question refers to a specific date — explicitly (e.g. "
+                    f"'July 5th'), relatively (e.g. 'tomorrow'), or by referring to "
+                    f"one of the saved events above (e.g. 'that day', 'the football "
+                    f"turf event') — respond with just that date in YYYY-MM-DD format. "
+                    f"If no date can be determined, respond with exactly 'NONE'."
+                ),
+            }],
+        )
+        text = response.choices[0].message.content.strip()
+        return None if text.upper() == "NONE" else text
+    except Exception:
+        return None
 
 
 def build_agent_graph():
@@ -169,6 +222,7 @@ async def run_agent(
     location_input: Optional[str] = None,
     start_date=None,
     end_date=None,
+    events: Optional[list] = None,
 ) -> dict:
     global _compiled_graph
     if _compiled_graph is None:
@@ -179,6 +233,7 @@ async def run_agent(
         "location_input": location_input,
         "start_date": start_date,
         "end_date": end_date,
+        "events": events,
         "location": None,
         "forecast": None,
         "risk_assessment": None,

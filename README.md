@@ -126,7 +126,7 @@ cd frontend
 npm install
 npm run dev
 ```
-App: `http://localhost:5173`
+App: `weather-risk-ii7vqfjts-yxshas565s-projects.vercel.app`
 
 ---
 

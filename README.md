@@ -126,7 +126,10 @@ cd frontend
 npm install
 npm run dev
 ```
-App: `weather-risk-ii7vqfjts-yxshas565s-projects.vercel.app`
+App:
+```bash 
+weather-risk-ii7vqfjts-yxshas565s-projects.vercel.app
+```
 
 ---
 

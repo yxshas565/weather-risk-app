@@ -36,7 +36,6 @@ async def get_location_context(lat: float, lon: float) -> dict:
             "country": address.get("country"),
             "map_embed_url": f"https://www.openstreetmap.org/#map=13/{lat}/{lon}",
             "static_map_url": (
-                f"https://staticmap.openstreetmap.de/staticmap.php?"
-                f"center={lat},{lon}&zoom=12&size=500x300&markers={lat},{lon},red-pushpin"
+                f"https://static-maps.yandex.ru/1.x/?ll={lon},{lat}&z=12&size=500,300&l=map&pt={lon},{lat},pm2rdm"
             ),
         }

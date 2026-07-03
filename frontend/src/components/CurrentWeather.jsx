@@ -1,3 +1,6 @@
+import { useState, useEffect } from "react";
+import api from "../api";
+
 const WEATHER_ICONS = {
   0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
   45: "🌫️", 48: "🌫️",
@@ -13,6 +16,28 @@ function iconFor(code) {
 }
 
 export default function CurrentWeather({ query }) {
+  const [context, setContext] = useState(null);
+  const [contextError, setContextError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setContext(null);
+    setContextError(null);
+    if (query?.latitude && query?.longitude) {
+      api
+        .locationContext(query.latitude, query.longitude)
+        .then((data) => {
+          if (!cancelled) setContext(data);
+        })
+        .catch((err) => {
+          if (!cancelled) setContextError(err.message);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [query?.id]);
+
   let weather;
   try {
     weather = JSON.parse(query.weather_data || "{}");
@@ -58,6 +83,28 @@ export default function CurrentWeather({ query }) {
           <span className="stat-label">Precipitation</span>
         </div>
       </div>
+
+      {context && (
+        <div className="location-context">
+          <img
+            src={context.static_map_url}
+            alt={`Map of ${context.display_name || query.resolved_name}`}
+            className="location-map"
+          />
+          <div className="location-context-info">
+            <p className="location-context-name">
+  <span className="location-context-label">Nearby: </span>{context.display_name}
+</p>
+            <a href={context.map_embed_url} target="_blank" rel="noreferrer" className="export-link">
+              Open in OpenStreetMap →
+            </a>
+          </div>
+        </div>
+      )}
+
+      {contextError && (
+        <p className="location-context-error">Location context unavailable: {contextError}</p>
+      )}
     </div>
   );
 }
